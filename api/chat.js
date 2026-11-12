@@ -1,18 +1,21 @@
-export default async function handler(req, res) {
+export const config = {
+  runtime: "edge",
+};
+
+export default async function handler(req) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const messages = body?.messages || [];
+    const { messages } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Server API key missing" });
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY missing" }), { status: 500 });
     }
 
-    const contents = messages.map((m) => ({
+    const contents = (messages || []).map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
@@ -32,48 +35,57 @@ export default async function handler(req, res) {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      return res.status(geminiRes.status).json({ error: errText });
+      return new Response(JSON.stringify({ error: errText }), { status: geminiRes.status });
     }
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    const reader = geminiRes.body.getReader();
+    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
-    let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = geminiRes.body.getReader();
+        let buffer = "";
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const jsonStr = line.slice(6).trim();
-          if (!jsonStr || jsonStr === "[DONE]") continue;
-          try {
-            const data = JSON.parse(jsonStr);
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              res.write(`data: ${JSON.stringify({ text })}\n\n`);
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const jsonStr = line.slice(6).trim();
+                if (!jsonStr || jsonStr === "[DONE]") continue;
+                try {
+                  const data = JSON.parse(jsonStr);
+                  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (text) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                  }
+                } catch (e) {}
+              }
             }
-          } catch (e) {}
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (err) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message })}\n\n`));
+          controller.close();
         }
-      }
-    }
+      },
+    });
 
-    res.write("data: [DONE]\n\n");
-    res.end();
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    });
   } catch (err) {
-    if (!res.headersSent) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-      res.end();
-    }
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
