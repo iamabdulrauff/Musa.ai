@@ -4,8 +4,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const messages = body?.messages || [];
+    const messages = req.body?.messages || [];
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
