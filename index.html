@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Musa AI</title>
+<style>
+:root{--ease:cubic-bezier(.22,.8,.24,1);--line:0 0 0 1px rgba(0,0,0,.06)}
+*{box-sizing:border-box;margin:0;padding:0;color:#000;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fff;overflow:hidden;-webkit-font-smoothing:antialiased;font-size:15.5px;line-height:1.6}
+button,textarea{font:inherit}
+button{cursor:pointer}
+svg{display:block;flex:none}
+
+/* backdrop */
+.bg{position:fixed;inset:0;overflow:hidden;background:#fbfcff}
+.o{position:absolute;border-radius:50%;filter:blur(90px);opacity:.75}
+.o1{width:48vmax;height:48vmax;left:-14vmax;top:-16vmax;background:#dfe7ff;animation:d1 30s ease-in-out infinite alternate}
+.o2{width:42vmax;height:42vmax;right:-12vmax;bottom:-14vmax;background:#ffe4ee;animation:d2 36s ease-in-out infinite alternate}
+.o3{width:34vmax;height:34vmax;left:38%;top:30%;background:#dff5ea;animation:d3 42s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate(18vmax,12vmax) scale(1.15)}}
+@keyframes d2{to{transform:translate(-16vmax,-10vmax) scale(1.1)}}
+@keyframes d3{to{transform:translate(-12vmax,10vmax) scale(.9)}}
+
+/* glass */
+.glass{
+  background:rgba(255,255,255,.52);
+  -webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);
+  box-shadow:var(--line),inset 0 1px 0 rgba(255,255,255,.95),0 12px 40px rgba(25,35,80,.07);
+}
+
+/* layout */
+.app{position:relative;display:flex;height:100vh;height:100dvh;padding:12px;gap:12px;animation:appIn .9s var(--ease) both}
+@keyframes appIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+
+/* sidebar */
+.sidebar{width:272px;flex:none;border-radius:22px;display:flex;flex-direction:column;padding:14px;gap:12px;transition:transform .55s var(--ease)}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px 4px;font-weight:700;font-size:18px;letter-spacing:-.02em}
+.new{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;border-radius:14px;background:rgba(255,255,255,.78);box-shadow:var(--line);font-weight:500;transition:transform .25s var(--ease),box-shadow .25s,background .25s}
+.new:hover{transform:translateY(-2px);background:#fff;box-shadow:var(--line),0 8px 20px rgba(0,0,0,.07)}
+.new:active{transform:scale(.98)}
+.history{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -4px;padding:0 4px}
+.h{display:flex;align-items:center;gap:6px;padding:9px 6px 9px 12px;border-radius:12px;font-size:14px;cursor:pointer;outline:none;transition:background .2s,transform .25s var(--ease)}
+.h:hover,.h:focus-visible{background:rgba(255,255,255,.7);transform:translateX(3px)}
+.h.active{background:rgba(255,255,255,.95);box-shadow:var(--line),0 4px 14px rgba(0,0,0,.05)}
+.h span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.del{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:8px;background:none;opacity:0;transition:opacity .2s,background .2s}
+.h:hover .del,.h.active .del,.h:focus-within .del{opacity:.7}
+.del:hover{opacity:1!important;background:rgba(0,0,0,.07)}
+@media(hover:none){.del{opacity:.7}}
+
+/* chat */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+.scroller{flex:1;overflow-y:auto;padding:14px 4px 10px;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.2) transparent}
+.scroller::-webkit-scrollbar,.history::-webkit-scrollbar{width:6px}
+.scroller::-webkit-scrollbar-thumb,.history::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:9px}
+.thread{max-width:780px;min-height:100%;margin:0 auto;padding:0 10px;display:flex;flex-direction:column;justify-content:flex-end;gap:14px;overflow-x:clip}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.msg{border-radius:20px;padding:12px 18px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:86%}
+.msg.user{align-self:flex-end;background:rgba(255,255,255,.9);border-bottom-right-radius:7px;box-shadow:var(--line),0 6px 20px rgba(0,0,0,.05)}
+.msg.bot{align-self:flex-start;background:rgba(255,255,255,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom-left-radius:7px;box-shadow:var(--line),inset 0 1px 0 rgba(255,255,255,.9)}
+.w{display:inline-block;white-space:pre-wrap}
+
+.dots{display:inline-flex;gap:5px;padding:7px 2px}
+.dots i{width:7px;height:7px;border-radius:50%;background:#000;animation:pulse 1.2s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes pulse{0%,70%,100%{transform:scale(.6);opacity:.3}35%{transform:scale(1);opacity:1}}
+
+/* ---------- welcome + rabbit ---------- */
+.welcome{position:absolute;left:0;right:0;top:0;bottom:96px;z-index:2;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 16px;text-align:center}
+
+.rabbit{width:clamp(120px,24vh,190px);pointer-events:auto;cursor:pointer;animation:hopIn 1.1s var(--ease) both;will-change:transform}
+.ract{transform-origin:50% 92%}
+.rabbit svg{width:100%;height:auto;overflow:visible}
+.rabbit svg *{vector-effect:non-scaling-stroke}
+.rb{animation:bob 3.2s ease-in-out infinite}
+.shadow{transform-origin:100px 226px;animation:shadow 3.2s ease-in-out infinite}
+.ear{animation:wiggle 4.5s ease-in-out infinite}
+.ear.l{transform-origin:75px 98px}
+.ear.r{transform-origin:125px 98px;animation-delay:.4s}
+.eye{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+.arm{transform-origin:142px 172px;animation:wave 3.6s ease-in-out 1.2s infinite}
+
+@keyframes hopIn{
+  0%{opacity:0;transform:translateY(-70px) scale(.7)}
+  45%{opacity:1;transform:translateY(8px) scale(1.06,.92)}
+  65%{transform:translateY(-14px) scale(.98,1.04)}
+  82%{transform:translateY(3px) scale(1.02,.98)}
+  100%{opacity:1;transform:none}
+}
+@keyframes bob{50%{transform:translateY(-9px)}}
+@keyframes shadow{50%{transform:scale(.82);opacity:.6}}
+@keyframes wiggle{0%,70%,100%{transform:rotate(0)}78%{transform:rotate(-7deg)}86%{transform:rotate(5deg)}94%{transform:rotate(-3deg)}}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}96.5%{transform:scaleY(.1)}}
+@keyframes wave{0%,55%,100%{transform:rotate(0)}65%{transform:rotate(-32deg)}75%{transform:rotate(4deg)}85%{transform:rotate(-32deg)}92%{transform:rotate(0)}}
+
+/* welcome text */
+.wtext h1{font-size:clamp(30px,6vw,52px);font-weight:600;letter-spacing:-.03em;line-height:1.15}
+.wd{display:inline-block;white-space:nowrap}
+.lt{display:inline-block;pointer-events:auto}
+.li{display:inline-block;cursor:default}
+.wtext p{margin-top:8px;font-size:clamp(15px,2.2vw,18px);animation:rise .9s var(--ease) 1.6s both}
+@keyframes letterWave{0%,30%,100%{transform:translateY(0)}15%{transform:translateY(-7px)}}
+
+/* leaving state (rabbit path comes from JS) */
+.welcome.leaving *{pointer-events:none!important}
+.welcome.leaving .ract{animation:none!important}
+.welcome.leaving .rb,.welcome.leaving .arm,.welcome.leaving .shadow{animation:none}
+.welcome.leaving .ear.l{animation:flap .16s ease-in-out infinite alternate}
+.welcome.leaving .ear.r{animation:flap .16s ease-in-out infinite alternate-reverse}
+.welcome.leaving .wtext{animation:textOut .6s ease forwards}
+@keyframes flap{from{transform:rotate(-16deg)}to{transform:rotate(14deg)}}
+@keyframes textOut{to{opacity:0;transform:translateY(-14px);filter:blur(8px)}}
+
+/* composer */
+.composer-wrap{flex:none;width:100%;max-width:800px;margin:0 auto;padding:6px 10px calc(6px + env(safe-area-inset-bottom))}
+.composer{display:flex;align-items:flex-end;gap:8px;border-radius:26px;padding:8px 8px 8px 20px;transition:transform .4s var(--ease),box-shadow .4s,background .3s}
+.composer:focus-within{transform:translateY(-3px);background:rgba(255,255,255,.75);box-shadow:var(--line),inset 0 1px 0 #fff,0 18px 50px rgba(25,35,80,.14)}
+textarea{flex:1;min-width:0;border:0;outline:0;background:transparent;resize:none;max-height:200px;padding:9px 0;font-size:16px;line-height:1.5}
+textarea::placeholder{color:#000;opacity:.5}
+.send{width:44px;height:44px;border:0;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.9);box-shadow:var(--line),0 4px 14px rgba(0,0,0,.08);transition:transform .3s var(--ease),opacity .3s,box-shadow .3s}
+.send:hover:not(:disabled){transform:translateY(-2px) scale(1.05);box-shadow:var(--line),0 10px 24px rgba(0,0,0,.14)}
+.send:active:not(:disabled){transform:scale(.92)}
+.send:disabled{opacity:.35;cursor:default}
+.send .stop{display:none}
+.composer.busy .send .go{display:none}
+.composer.busy .send .stop{display:block;animation:pop .35s var(--ease)}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+
+/* mobile menu button + drawer */
+.menu,.scrim{display:none}
+@media(max-width:859px){
+  .sidebar{position:fixed;z-index:30;top:12px;bottom:12px;left:12px;width:min(300px,calc(100vw - 24px));transform:translateX(calc(-100% - 24px));background:rgba(255,255,255,.8)}
+  .app.open .sidebar{transform:none}
+  .menu{display:grid;place-items:center;position:absolute;z-index:10;top:0;left:0;width:44px;height:44px;border:0;border-radius:14px}
+  .scroller{padding-top:56px}
+  .scrim{display:block;position:fixed;inset:0;z-index:20;background:rgba(255,255,255,.35);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .4s}
+  .app.open .scrim{opacity:1;pointer-events:auto}
+}
+@media(max-width:600px){
+  .app{padding:8px;gap:8px}
+  .msg{max-width:92%;padding:11px 15px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="bg"><i class="o o1"></i><i class="o o2"></i><i class="o o3"></i></div>
+
+<div class="app" id="app">
+  <div class="scrim" id="scrim"></div>
+
+  <aside class="sidebar glass">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8.5" cy="6" rx="2.2" ry="4.5"/><ellipse cx="15.5" cy="6" rx="2.2" ry="4.5"/><ellipse cx="12" cy="15" rx="7" ry="6"/><circle cx="9.7" cy="14.5" r=".6" fill="#000"/><circle cx="14.3" cy="14.5" r=".6" fill="#000"/></svg>
+      Musa AI
+    </div>
+    <button class="new" id="newChat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      New chat
+    </button>
+    <nav class="history" id="history"></nav>
+  </aside>
+
+  <main class="main" id="main">
+    <button class="menu glass" id="menu" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    </button>
+
+    <section class="scroller" id="scroller"><div class="thread" id="thread"></div></section>
+
+    <footer class="composer-wrap">
+      <form class="composer glass" id="form" autocomplete="off">
+        <textarea id="input" rows="1" placeholder="Message Musa AI" enterkeyhint="send"></textarea>
+        <button class="send" id="send" type="submit" aria-label="Send" disabled>
+          <svg class="go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          <svg class="stop" width="18" height="18" viewBox="0 0 24 24" fill="#000"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>
+        </button>
+      </form>
+    </footer>
+  </main>
+</div>
+
+<script>
+const API_URL = "/api/chat";
+const DEMO = location.protocol === "file:";   // plain file => fake replies for preview
+
+/* =====================================================================
+   500 ANIMATION ENGINE
+   Every animation below is its own @keyframes, generated from a seeded
+   random generator (10 families x random parameters). Same every load.
+   ===================================================================== */
+const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const f  = n => +n.toFixed(2);
+const u  = (r, a, b) => a + r() * (b - a);
+const sg = r => r() < .5 ? -1 : 1;
+const kf = steps => steps.map(([p, t]) => `${p}%{transform:${t}}`).join("");
+
+const CSS = []; let TOTAL = 0;
+function make(prefix, n, seed, gen) {
+  const durs = [];
+  for (let i = 0; i < n; i++) {
+    const { frames, dur } = gen(i, mulberry(seed + i * 131));
+    CSS.push(`@keyframes ${prefix}${i}{${frames}}`); durs.push(dur); TOTAL++;
+  }
+  return durs;
+}
+const std = (from, og = "", endx = "") => `from{opacity:0;${from}${og}}to{opacity:1;transform:none;filter:none${og}${endx}}`;
+
+/* 1) 100 message entrances */
+const MSG = make("am", 100, 1000, (i, r) => {
+  const dur = Math.round(u(r, 480, 900)); let frames;
+  switch (i % 10) {
+    case 0: frames = std(`transform:translate(${f(sg(r) * u(r, 0, 50))}px,${f(sg(r) * u(r, 14, 50))}px)`); break;
+    case 1: frames = std(`transform:scale(${f(r() < .7 ? u(r, .4, .88) : u(r, 1.12, 1.35))})`); break;
+    case 2: frames = std(`transform:translateY(${f(u(r, 10, 36))}px) rotate(${f(sg(r) * u(r, 4, 22))}deg) scale(${f(u(r, .8, .95))})`); break;
+    case 3: { const og = `;transform-origin:${r() < .5 ? "50% 0" : "50% 100%"}`; frames = std(`transform:perspective(700px) rotateX(${f(sg(r) * u(r, 45, 88))}deg)`, og); break; }
+    case 4: { const og = `;transform-origin:${r() < .5 ? "0 50%" : "100% 50%"}`; frames = std(`transform:perspective(700px) rotateY(${f(sg(r) * u(r, 45, 88))}deg)`, og); break; }
+    case 5: frames = std(`transform:skew(${f(sg(r) * u(r, 8, 28))}deg,${f(sg(r) * u(r, 0, 6))}deg) translateX(${f(sg(r) * u(r, 20, 60))}px)`); break;
+    case 6: frames = std(`filter:blur(${f(u(r, 8, 22))}px);transform:scale(${f(u(r, .9, 1.18))})`); break;
+    case 7: { const d = sg(r) * u(r, 60, 130);
+      frames = `0%{opacity:0;transform:translateY(${f(-d)}px)}55%{opacity:1;transform:translateY(${f(d * .1)}px)}75%{transform:translateY(${f(-d * .04)}px)}100%{opacity:1;transform:none}`; break; }
+    case 8: { const a = sg(r) * u(r, 10, 30), og = `transform-origin:${r() < .5 ? "0 0" : "100% 0"}`;
+      frames = `0%{opacity:0;${og};transform:rotate(${f(a)}deg)}35%{opacity:1;${og};transform:rotate(${f(-a * .55)}deg)}60%{${og};transform:rotate(${f(a * .25)}deg)}80%{${og};transform:rotate(${f(-a * .1)}deg)}100%{opacity:1;${og};transform:none}`; break; }
+    default: { const D = ["0 100% 0 0", "0 0 0 100%", "100% 0 0 0", "0 0 100% 0", "50% 50% 50% 50%"][Math.floor(r() * 5)];
+      frames = std(`clip-path:inset(${D})`, "", ";clip-path:inset(-40px -40px -40px -40px)"); }
+  }
+  return { frames, dur };
+});
+
+/* 2) 100 reply-word fade-ins (subtle) */
+const CHUNK = make("ac", 100, 2000, (i, r) => {
+  const dur = Math.round(u(r, 280, 640)); let from;
+  switch (i % 10) {
+    case 0: from = `transform:translateY(${f(u(r, 4, 10))}px)`; break;
+    case 1: from = `transform:translateY(${f(-u(r, 4, 10))}px)`; break;
+    case 2: from = `transform:translateX(${f(sg(r) * u(r, 6, 14))}px)`; break;
+    case 3: from = `transform:scale(${f(u(r, .75, .92))})`; break;
+    case 4: from = `filter:blur(${f(u(r, 3, 8))}px)`; break;
+    case 5: from = `transform:rotate(${f(sg(r) * u(r, 5, 14))}deg) translateY(4px)`; break;
+    case 6: from = `transform:skewX(${f(sg(r) * u(r, 8, 22))}deg)`; break;
+    case 7: from = `transform-origin:50% 100%;transform:scaleY(${f(u(r, .2, .6))})`; break;
+    case 8: from = `filter:blur(${f(u(r, 2, 5))}px);transform:translateY(${f(u(r, 3, 9))}px)`; break;
+    default: from = `transform:scale(${f(u(r, 1.2, 1.5))})`;
+  }
+  return { frames: std(from), dur };
+});
+
+/* 3) 100 welcome-letter entrances (bigger) */
+const LET = make("al", 100, 3000, (i, r) => {
+  const dur = Math.round(u(r, 700, 1300)); let frames;
+  switch (i % 10) {
+    case 0: frames = std(`transform:translateY(${f(-u(r, 40, 110))}px) rotate(${f(sg(r) * u(r, 10, 60))}deg)`); break;
+    case 1: frames = std(`transform:translateY(${f(u(r, 30, 80))}px) scale(.7);filter:blur(${f(u(r, 8, 16))}px)`); break;
+    case 2: frames = std(`transform:scale(${f(u(r, 2.2, 4))});filter:blur(10px)`); break;
+    case 3: frames = std(`transform:perspective(500px) rotateX(${f(sg(r) * u(r, 90, 200))}deg)`); break;
+    case 4: frames = std(`transform:perspective(500px) rotateY(${f(sg(r) * u(r, 90, 200))}deg)`); break;
+    case 5: frames = std(`transform:rotate(${f(sg(r) * u(r, 180, 540))}deg) scale(.2)`); break;
+    case 6: frames = std(`transform:translateX(${f(sg(r) * u(r, 50, 120))}px) skewX(${f(sg(r) * u(r, 10, 30))}deg)`); break;
+    case 7: { const d = u(r, 80, 160);
+      frames = `0%{opacity:0;transform:translateY(${f(-d)}px)}50%{opacity:1;transform:translateY(0)}68%{transform:translateY(${f(-d * .22)}px)}84%{transform:translateY(0)}92%{transform:translateY(${f(-d * .06)}px)}100%{opacity:1;transform:none}`; break; }
+    case 8: { const a = sg(r) * u(r, 6, 20);
+      frames = `0%{opacity:0;transform:scale(0)}45%{opacity:1;transform:scale(${f(u(r, 1.25, 1.5))}) rotate(${f(a)}deg)}70%{transform:scale(.9) rotate(${f(-a * .5)}deg)}100%{opacity:1;transform:none}`; break; }
+    default: frames = std(`transform:scale(${f(u(r, 1.4, 2.2))},0)`, ";transform-origin:50% 100%");
+  }
+  return { frames, dur };
+});
+
+/* 4) 50 letter hover effects */
+const HOV = make("ah", 50, 4000, (i, r) => {
+  const dur = Math.round(u(r, 500, 1000)), s = sg(r); let st;
+  switch (i % 10) {
+    case 0: { const h = u(r, 10, 22); st = [[0, "none"], [30, `translateY(${f(-h)}px)`], [55, "translateY(0) scale(1.12,.85)"], [75, `translateY(${f(-h * .25)}px)`], [100, "none"]]; break; }
+    case 1: st = [[0, "none"], [100, `rotate(${s * 360}deg)`]]; break;
+    case 2: st = [[0, "none"], [25, `scale(${f(u(r, 1.2, 1.4))},.75)`], [50, `scale(.8,${f(u(r, 1.2, 1.4))})`], [75, "scale(1.1,.9)"], [100, "none"]]; break;
+    case 3: { const d = u(r, 3, 7); st = [[0, "none"], [20, `translateX(${f(-d)}px)`], [40, `translateX(${f(d)}px)`], [60, `translateX(${f(-d * .6)}px)`], [80, `translateX(${f(d * .6)}px)`], [100, "none"]]; break; }
+    case 4: st = [[0, "none"], [100, `perspective(300px) rotateY(${s * 360}deg)`]]; break;
+    case 5: st = [[0, "none"], [100, `perspective(300px) rotateX(${s * 360}deg)`]]; break;
+    case 6: { const a = u(r, 4, 9); st = [[0, "none"], [10, `scale(.9) rotate(${-a}deg)`], [30, `scale(1.2) rotate(${a}deg)`], [50, `scale(1.2) rotate(${-a}deg)`], [70, `scale(1.2) rotate(${a}deg)`], [100, "none"]]; break; }
+    case 7: { const a = u(r, 12, 28); st = [[0, "none"], [25, `rotate(${f(a)}deg)`], [50, `rotate(${f(-a * .7)}deg)`], [75, `rotate(${f(a * .35)}deg)`], [100, "none"]]; break; }
+    case 8: st = [[0, "none"], [50, `scale(${f(u(r, 1.25, 1.6))})`], [100, "none"]]; break;
+    default: st = [[0, "none"], [30, `scale(${f(u(r, 1.3, 1.6))},.8)`], [50, "scale(.85,1.2)"], [70, "scale(1.1,.95)"], [100, "none"]];
+  }
+  return { frames: kf(st), dur };
+});
+
+/* 5) 50 rabbit idle actions */
+const IDLE = make("ai", 50, 5000, (i, r) => {
+  const dur = Math.round(u(r, 900, 1700)), s = sg(r), h = u(r, 26, 62); let st;
+  switch (i % 10) {
+    case 0: st = [[0, "none"], [30, "translateY(8px) scale(1.06,.9)"], [55, `translateY(${f(-h)}px) scale(.96,1.06)`], [80, "translateY(0) scale(1.05,.94)"], [100, "none"]]; break;
+    case 1: st = [[0, "none"], [15, "translateY(6px) scale(1.05,.92)"], [32, `translateY(${f(-h)}px)`], [50, "translateY(0) scale(1.04,.95)"], [66, `translateY(${f(-h * .7)}px)`], [84, "translateY(0) scale(1.03,.96)"], [100, "none"]]; break;
+    case 2: st = [[0, "none"], [50, `translateY(${f(-h * .8)}px) rotate(${s * 180}deg)`], [100, `rotate(${s * 360}deg)`]]; break;
+    case 3: st = [[0, "none"], [100, `perspective(600px) rotateY(${s * 360}deg)`]]; break;
+    case 4: st = [[0, "none"], [50, `translateY(${f(-h)}px) perspective(700px) rotateX(${s * 180}deg)`], [100, `perspective(700px) rotateX(${s * 360}deg)`]]; break;
+    case 5: { const a = u(r, 8, 18); st = [[0, "none"], [20, `rotate(${f(a)}deg)`], [40, `rotate(${f(-a * .8)}deg)`], [60, `rotate(${f(a * .5)}deg)`], [80, `rotate(${f(-a * .25)}deg)`], [100, "none"]]; break; }
+    case 6: { const d = u(r, 6, 16); st = [[0, "none"], [15, `translateX(${f(-d)}px)`], [30, `translateX(${f(d)}px)`], [45, `translateX(${f(-d)}px)`], [60, `translateX(${f(d)}px)`], [75, `translateX(${f(-d * .5)}px)`], [100, "none"]]; break; }
+    case 7: st = [[0, "none"], [25, "scale(1.1,.88)"], [50, "scale(.93,1.1)"], [75, "scale(1.05,.96)"], [100, "none"]]; break;
+    case 8: { const a = u(r, 10, 22) * s; st = [[0, "none"], [25, `rotate(${f(a)}deg)`], [75, `rotate(${f(a)}deg)`], [100, "none"]]; break; }
+    default: { const d = u(r, 10, 24), a = u(r, 4, 10); st = [[0, "none"], [25, `translateX(${f(-d)}px) rotate(${f(-a)}deg)`], [75, `translateX(${f(d)}px) rotate(${f(a)}deg)`], [100, "none"]]; }
+  }
+  return { frames: kf(st), dur };
+});
+
+/* 6) 50 rabbit fly-away paths */
+const EXIT = make("ax", 50, 6000, (i, r) => {
+  const dur = Math.round(u(r, 1100, 1700)), dir = sg(r);
+  const ex = f(dir * u(r, 15, 65)), ey = f(-u(r, 75, 115));
+  const mx = f(dir * u(r, 0, 6)), my = f(-u(r, 30, 75));
+  const spin = i % 3 === 0 ? sg(r) * 360 * Math.ceil(u(r, 1, 2)) : 0;
+  const a2 = f(sg(r) * u(r, 10, 55) + spin), sc = f(u(r, .2, .5)), wob = f(sg(r) * u(r, 4, 22));
+  return { dur, frames:
+    `0%{transform:none;opacity:1}` +
+    `20%{transform:translateY(12px) scale(1.08,.88)}` +
+    `40%{transform:translate(${mx}vw,${my}px) scale(.96,1.08) rotate(${f(sg(r) * u(r, 2, 8))}deg);opacity:1}` +
+    `70%{transform:translate(${f(ex * .55 + wob)}vw,${f(ey * .5)}vh) rotate(${f(a2 * .5)}deg) scale(${f((1 + sc) / 2)});opacity:1}` +
+    `100%{transform:translate(${ex}vw,${ey}vh) rotate(${a2}deg) scale(${sc});opacity:0}` };
+});
+
+/* 7) 50 button press effects */
+const PRESS = make("ap", 50, 7000, (i, r) => {
+  const dur = Math.round(u(r, 350, 650)), s = sg(r); let st;
+  switch (i % 10) {
+    case 0: st = [[0, "none"], [40, `scale(${f(u(r, 1.1, 1.18))})`], [100, "none"]]; break;
+    case 1: st = [[0, "none"], [35, `scale(${f(u(r, .84, .92))})`], [70, "scale(1.05)"], [100, "none"]]; break;
+    case 2: { const a = u(r, 5, 10); st = [[0, "none"], [25, `rotate(${f(a)}deg)`], [50, `rotate(${f(-a)}deg)`], [75, `rotate(${f(a * .5)}deg)`], [100, "none"]]; break; }
+    case 3: st = [[0, "none"], [40, `translateY(${f(-u(r, 4, 9))}px)`], [100, "none"]]; break;
+    case 4: st = [[0, "none"], [40, `translateX(${f(s * u(r, 3, 7))}px)`], [100, "none"]]; break;
+    case 5: st = [[0, "none"], [30, "scale(1.15,.88)"], [60, "scale(.92,1.1)"], [100, "none"]]; break;
+    case 6: st = [[0, "none"], [40, `rotate(${f(s * u(r, 3, 7))}deg) scale(1.04)`], [100, "none"]]; break;
+    case 7: st = [[0, "none"], [25, "scale(1.08)"], [50, "scale(1)"], [75, "scale(1.05)"], [100, "none"]]; break;
+    case 8: st = [[0, "none"], [25, "scale(1.2,.85)"], [45, "scale(.9,1.1)"], [65, "scale(1.05,.97)"], [100, "none"]]; break;
+    default: { const d = u(r, 2, 5); st = [[0, "none"], [20, `translateX(${f(-d)}px)`], [40, `translateX(${f(d)}px)`], [60, `translateX(${f(-d)}px)`], [80, `translateX(${f(d)}px)`], [100, "none"]]; }
+  }
+  return { frames: kf(st), dur };
+});
+
+const styleTag = document.createElement("style");
+styleTag.textContent = CSS.join("");
+document.head.appendChild(styleTag);
+console.log(`Musa AI: ${TOTAL} animations registered`);
+
+/* shuffle-bag: every animation is used once before any repeats */
+function bag(n) {
+  let d = [];
+  return () => {
+    if (!d.length) { d = [...Array(n).keys()]; for (let k = n - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [d[k], d[j]] = [d[j], d[k]]; } }
+    return d.pop();
+  };
+}
+const nextMsg = bag(100), nextChunk = bag(100), nextLet = bag(100), nextHov = bag(50), nextIdle = bag(50), nextExit = bag(50), nextPress = bag(50);
+const EASE = "cubic-bezier(.22,.8,.24,1)";
+
+function playOnce(el, name, dur, easing) {
+  el.style.animation = `${name} ${dur}ms ${easing}`;
+  const done = ev => { if (ev.target !== el) return; el.style.animation = ""; el.removeEventListener("animationend", done); };
+  el.addEventListener("animationend", done);
+}
+
+/* =====================================================================
+   APP
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const app = $("#app"), main = $("#main"), thread = $("#thread"), scroller = $("#scroller"), input = $("#input"),
+      form = $("#form"), sendBtn = $("#send"), historyEl = $("#history");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const isTouch = matchMedia("(hover:none)").matches;
+
+/* ---------- rabbit ---------- */
+const RABBIT = `
+<svg viewBox="0 0 200 232" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <ellipse class="shadow" cx="100" cy="226" rx="52" ry="5" fill="#000" fill-opacity=".12" stroke="none"/>
+  <g class="rb">
+    <g class="ear l"><ellipse cx="75" cy="55" rx="16" ry="45" transform="rotate(-10 75 55)" fill="#fff"/><ellipse cx="75" cy="58" rx="7.5" ry="31" transform="rotate(-10 75 58)" fill="#ffd3df" stroke="none"/></g>
+    <g class="ear r"><ellipse cx="125" cy="55" rx="16" ry="45" transform="rotate(10 125 55)" fill="#fff"/><ellipse cx="125" cy="58" rx="7.5" ry="31" transform="rotate(10 125 58)" fill="#ffd3df" stroke="none"/></g>
+    <ellipse cx="76" cy="212" rx="17" ry="9" fill="#fff"/>
+    <ellipse cx="124" cy="212" rx="17" ry="9" fill="#fff"/>
+    <ellipse cx="100" cy="178" rx="48" ry="38" fill="#fff"/>
+    <ellipse cx="100" cy="112" rx="56" ry="48" fill="#fff"/>
+    <ellipse cx="68" cy="172" rx="9" ry="13" transform="rotate(20 68 172)" fill="#fff"/>
+    <g class="arm"><ellipse cx="148" cy="162" rx="8.5" ry="14" transform="rotate(-18 148 162)" fill="#fff"/></g>
+    <ellipse class="eye" cx="80" cy="107" rx="5" ry="6.5" fill="#000" stroke="none"/>
+    <ellipse class="eye" cx="120" cy="107" rx="5" ry="6.5" fill="#000" stroke="none"/>
+    <circle cx="81.8" cy="104.5" r="1.8" fill="#fff" stroke="none"/>
+    <circle cx="121.8" cy="104.5" r="1.8" fill="#fff" stroke="none"/>
+    <circle cx="67" cy="124" r="8" fill="#ffb3c6" fill-opacity=".65" stroke="none"/>
+    <circle cx="133" cy="124" r="8" fill="#ffb3c6" fill-opacity=".65" stroke="none"/>
+    <ellipse cx="100" cy="119" rx="4.5" ry="3.2" fill="#ff8fab" stroke="none"/>
+    <path d="M100 122v5M100 127q-7 9-16 3M100 127q7 9 16 3" stroke-width="2"/>
+    <path d="M60 116L42 111M60 122L41 124M140 116L158 111M140 122L159 124" stroke-width="1.3" stroke-opacity=".55"/>
+  </g>
+</svg>`;
+
+/* ---------- welcome ---------- */
+let welcomeEl = null, idleT = 0;
+
+function playIdle() {
+  const w = welcomeEl; if (!w || w.classList.contains("leaving")) return;
+  const a = w.querySelector(".ract"); if (!a || a.style.animation) return;
+  const k = nextIdle();
+  playOnce(a, `ai${k}`, IDLE[k], "ease-in-out");
+}
+function idleLoop() { idleT = setTimeout(() => { playIdle(); idleLoop(); }, 4000 + Math.random() * 4000); }
+
+function showWelcome() {
+  hideWelcome();
+  const w = document.createElement("div"); w.className = "welcome";
+
+  const rab = document.createElement("div"); rab.className = "rabbit";
+  rab.innerHTML = `<div class="ract">${RABBIT}</div>`;
+  rab.addEventListener("click", playIdle);
+
+  const wt = document.createElement("div"); wt.className = "wtext";
+  const h1 = document.createElement("h1"); h1.setAttribute("aria-label", "Welcome to Musa AI");
+  let n = 0;
+  "Welcome to Musa AI".split(" ").forEach((word, wi) => {
+    if (wi) h1.append(" ");
+    const wd = document.createElement("span"); wd.className = "wd";
+    for (const ch of word) {
+      const lt = document.createElement("span"), li = document.createElement("span");
+      lt.className = "lt"; li.className = "li"; li.textContent = ch;
+      const k = nextLet();
+      lt.style.animation = `al${k} ${LET[k]}ms ${EASE} ${350 + n * 60}ms both, letterWave 3.4s ease-in-out ${2.6 + n * .12}s infinite`;
+      lt.appendChild(li); wd.appendChild(lt); n++;
+    }
+    h1.appendChild(wd);
+  });
+  h1.addEventListener("mouseover", e => {
+    const li = e.target.closest(".li"); if (!li || li.style.animation) return;
+    const k = nextHov(); playOnce(li, `ah${k}`, HOV[k], "ease-in-out");
+  });
+  const p = document.createElement("p"); p.textContent = "How can I help you today?";
+  wt.append(h1, p);
+
+  w.append(rab, wt); main.appendChild(w); welcomeEl = w;
+  clearTimeout(idleT); idleLoop();
+}
+function hideWelcome() { clearTimeout(idleT); if (welcomeEl) { welcomeEl.remove(); welcomeEl = null; } }
+function flyAway() {
+  const w = welcomeEl; if (!w) return;
+  welcomeEl = null; clearTimeout(idleT);
+  const k = nextExit(), rab = w.querySelector(".rabbit");
+  w.classList.add("leaving");
+  rab.style.animation = `ax${k} ${EXIT[k]}ms cubic-bezier(.35,0,.65,1) forwards`;
+  setTimeout(() => w.remove(), EXIT[k] + 150);
+}
+
+/* ---------- state ---------- */
+const KEY = "musaai.chats";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+const persist = () => localStorage.setItem(KEY, JSON.stringify(chats));
+let chats = load(), current = null, busy = false, ctrl = null, freshId = null;
+
+const stick = () => scroller.scrollTop = scroller.scrollHeight;
+const closeSide = () => app.classList.remove("open");
+
+function newChat() {
+  closeSide();
+  if (current && !current.messages.length) return render();
+  current = { id: Date.now(), title: "New chat", messages: [] };
+  chats.unshift(current); freshId = current.id; persist(); render();
+  if (!isTouch) input.focus();
+}
+
+function removeChat(id) {
+  if (busy) return;
+  chats = chats.filter(c => c.id !== id); persist();
+  if (current.id === id) { current = chats[0] || null; if (!current) return newChat(); }
+  render();
+}
+
+function renderHistory() {
+  historyEl.innerHTML = "";
+  chats.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "h" + (c.id === current?.id ? " active" : "");
+    d.tabIndex = 0; d.setAttribute("role", "button");
+    d.innerHTML = `<span></span><button class="del" type="button" aria-label="Delete chat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg></button>`;
+    d.firstChild.textContent = c.title;
+    if (c.id === freshId) { const k = nextMsg(); d.style.animation = `am${k} ${MSG[k]}ms ${EASE} both`; }
+    d.onclick = e => {
+      if (e.target.closest(".del")) return removeChat(c.id);
+      if (busy) return;
+      current = c; render(); closeSide();
+    };
+    d.onkeydown = e => { if (e.key === "Enter" && e.target === d) d.click(); };
+    historyEl.appendChild(d);
+  });
+  freshId = null;
+}
+
+function render() {
+  renderHistory();
+  thread.innerHTML = "";
+  current.messages.forEach(m => addMsg(m.role === "user" ? "user" : "bot", m.content, true));
+  current.messages.length ? hideWelcome() : showWelcome();
+  stick();
+}
+
+function addMsg(role, text, restored = false) {
+  const d = document.createElement("div");
+  d.className = `msg ${role}`;
+  d.textContent = text;
+  if (!restored) { const k = nextMsg(); d.style.animation = `am${k} ${MSG[k]}ms ${EASE} both`; }
+  thread.appendChild(d);
+  return d;
+}
+
+/* each streamed word gets its own fade-in */
+function addChunk(el, text) {
+  for (const p of text.split(/(\s+)/)) {
+    if (!p) continue;
+    if (/^\s+$/.test(p)) { el.appendChild(document.createTextNode(p)); continue; }
+    const s = document.createElement("span"), k = nextChunk();
+    s.className = "w"; s.textContent = p;
+    s.style.animation = `ac${k} ${CHUNK[k]}ms ease-out both`;
+    el.appendChild(s);
+  }
+}
+
+/* ---------- network (SSE stream from your backend) ---------- */
+async function streamReply(messages, onToken, signal) {
+  if (DEMO) {
+    await sleep(900);
+    for (const p of "Hello! I am Musa AI. This is a preview reply, so run the backend to talk to the real model.".split(/(\s+)/)) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      onToken(p); await sleep(45);
+    }
+    return;
+  }
+  const res = await fetch(API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }), signal
+  });
+  if (!res.ok) throw new Error("Request failed");
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split("\n\n"); buf = parts.pop();
+    for (const p of parts) {
+      if (!p.startsWith("data: ")) continue;
+      const data = p.slice(6);
+      if (data === "[DONE]") return;
+      const j = JSON.parse(data);
+      if (j.error) throw new Error(j.error);
+      if (j.text) onToken(j.text);
+    }
+  }
+}
+
+function setBusy(v) {
+  busy = v; form.classList.toggle("busy", v);
+  sendBtn.disabled = !v && !input.value.trim();
+}
+
+async function send() {
+  const text = input.value.trim();
+  if (!text || busy) return;
+  if (!current) newChat();
+  if (!current.messages.length) {
+    current.title = text.length > 40 ? text.slice(0, 40) + "…" : text;
+    flyAway();
+  }
+  current.messages.push({ role: "user", content: text });
+  addMsg("user", text);
+  input.value = ""; autosize(); renderHistory(); persist(); stick();
+
+  setBusy(true);
+  const el = addMsg("bot", "");
+  el.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>';
+  stick();
+
+  let full = "", failed = false, first = true;
+  ctrl = new AbortController();
+  try {
+    await streamReply(current.messages, t => {
+      if (first) { el.textContent = ""; first = false; }
+      full += t; addChunk(el, t); stick();
+    }, ctrl.signal);
+  } catch (e) {
+    if (e.name !== "AbortError") { failed = true; if (!full) el.textContent = "Something went wrong. Please try again."; }
+  }
+  if (full) {
+    current.messages.push({ role: "assistant", content: full }); persist();
+    setTimeout(() => { if (el.isConnected) el.textContent = full; }, 900);   // tidy DOM after animations finish
+  } else if (!failed) el.remove();
+  ctrl = null; setBusy(false); stick();
+}
+
+/* ---------- events ---------- */
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
+input.addEventListener("input", () => { autosize(); sendBtn.disabled = !busy && !input.value.trim(); });
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && !isTouch) { e.preventDefault(); form.requestSubmit(); }
+});
+form.addEventListener("submit", e => { e.preventDefault(); busy ? ctrl?.abort() : send(); });
+$("#newChat").onclick = newChat;
+$("#menu").onclick = () => app.classList.toggle("open");
+$("#scrim").onclick = closeSide;
+addEventListener("keydown", e => { if (e.key === "Escape") closeSide(); });
+
+/* press animation on buttons */
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest(".new,.send,.menu,.h");
+  if (!b || b.disabled || e.target.closest(".del") || b.style.animation) return;
+  const k = nextPress(); playOnce(b, `ap${k}`, PRESS[k], "ease-out");
+});
+
+/* ---------- start ---------- */
+if (chats.length) { current = chats[0]; render(); } else newChat();
+</script>
+</body>
+</html>
